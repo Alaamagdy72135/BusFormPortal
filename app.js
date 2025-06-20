@@ -28,10 +28,13 @@ app.use('/admin.html', protectAdmin);
 app.use('/api', protectAdmin);
 
 // === Google Sheets Auth ===
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, 'config', 'credentials.json'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  credentials,
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
+
 
 async function getSheetsClient() {
   const client = await auth.getClient();
