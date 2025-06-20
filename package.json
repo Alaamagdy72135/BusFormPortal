@@ -1,0 +1,16 @@
+{
+  "name": "bus-form-portal",
+  "version": "1.0.0",
+  "description": "Bus registration form with dependent dropdowns",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "basic-auth": "^2.0.1",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "googleapis": "^126.0.1"
+  }
+}
