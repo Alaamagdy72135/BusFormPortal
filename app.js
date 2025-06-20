@@ -9,15 +9,31 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// === Environment Variables ===
+// === Basic Auth Middleware for admin only ===
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASS = process.env.ADMIN_PASS;
+
+function protectAdmin(req, res, next) {
+  const user = basicAuth(req);
+  if (user && user.name === ADMIN_USER && user.pass === ADMIN_PASS) {
+    return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+  return res.status(401).send('🔒 Unauthorized');
+}
+
+// === Serve static public files ===
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: ['index.html'],
+}));
+
+// === Protect admin.html route only ===
+app.get('/admin.html', protectAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'admin.html'));
+});
+
+// === Google Sheets Setup ===
 const SHEET_ID = process.env.SHEET_ID;
-
-// === Serve public files (form, assets) ===
-app.use(express.static('public'));
-
-// === Google Sheets Auth ===
 const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 
 const auth = new google.auth.GoogleAuth({
@@ -30,41 +46,22 @@ async function getSheetsClient() {
   return google.sheets({ version: 'v4', auth: client });
 }
 
-// === Basic Auth Middleware ===
-function protectAdmin(req, res, next) {
-  const user = basicAuth(req);
-  if (user && user.name === ADMIN_USER && user.pass === ADMIN_PASS) {
-    return next();
-  }
-  res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
-  return res.status(401).send('🔒 Unauthorized');
-}
-
-// === Serve protected admin.html manually ===
-app.get('/admin.html', protectAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin', 'admin.html'));
-});
-
-// === Protect API routes ===
-app.use('/api', protectAdmin);
-
-// === GET Usage Data ===
-app.get('/api/usage', async (req, res) => {
+// === API: GET usage data ===
+app.get('/api/usage', protectAdmin, async (req, res) => {
   try {
     const sheets = await getSheetsClient();
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Usage!A2:C'
+      range: 'Usage!A2:C',
     });
 
-    const rows = result.data.values || [];
     const usage = {};
-    rows.forEach(([line, max, used]) => {
+    for (const [line, max, used] of result.data.values || []) {
       usage[line] = {
         max: parseInt(max),
-        used: parseInt(used)
+        used: parseInt(used),
       };
-    });
+    }
 
     res.json(usage);
   } catch (err) {
@@ -73,60 +70,54 @@ app.get('/api/usage', async (req, res) => {
   }
 });
 
-// === Update Max Limit per Line ===
-app.post('/api/update-limits', async (req, res) => {
+// === API: Update Line Limit ===
+app.post('/api/update-limits', protectAdmin, async (req, res) => {
   const { line, max } = req.body;
   try {
     const sheets = await getSheetsClient();
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Usage!A2:C'
+      range: 'Usage!A2:C',
     });
 
     const rows = result.data.values || [];
     const rowIndex = rows.findIndex(r => r[0] === line);
-
-    if (rowIndex === -1) {
-      return res.status(404).json({ error: 'Line not found' });
-    }
+    if (rowIndex === -1) return res.status(404).json({ error: 'Line not found' });
 
     const rowNumber = rowIndex + 2;
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `Usage!B${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[max]] }
+      resource: { values: [[max]] },
     });
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update limits' });
+    res.status(500).json({ error: 'Failed to update limit' });
   }
 });
 
-// === Reset Usage per Line ===
-app.post('/api/reset-usage', async (req, res) => {
+// === API: Reset Usage ===
+app.post('/api/reset-usage', protectAdmin, async (req, res) => {
   const { line } = req.body;
   try {
     const sheets = await getSheetsClient();
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Usage!A2:C'
+      range: 'Usage!A2:C',
     });
 
     const rows = result.data.values || [];
     const rowIndex = rows.findIndex(r => r[0] === line);
-
-    if (rowIndex === -1) {
-      return res.status(404).json({ error: 'Line not found' });
-    }
+    if (rowIndex === -1) return res.status(404).json({ error: 'Line not found' });
 
     const rowNumber = rowIndex + 2;
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `Usage!C${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[0]] }
+      resource: { values: [[0]] },
     });
 
     res.json({ success: true });
@@ -135,7 +126,7 @@ app.post('/api/reset-usage', async (req, res) => {
   }
 });
 
-// === Handle Form Submission ===
+// === API: Submit Form ===
 app.post('/submit', async (req, res) => {
   const { name, phone, department, line, point, time } = req.body;
 
@@ -151,15 +142,14 @@ app.post('/submit', async (req, res) => {
   try {
     const sheets = await getSheetsClient();
 
-    // Get usage row
+    // Fetch usage row
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Usage!A2:C'
+      range: 'Usage!A2:C',
     });
 
     const rows = result.data.values || [];
     const rowIndex = rows.findIndex(r => r[0] === line);
-
     if (rowIndex === -1) {
       return res.status(400).json({ success: false, message: 'خط غير معروف' });
     }
@@ -172,14 +162,14 @@ app.post('/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'لا توجد أماكن متبقية لهذا الخط.' });
     }
 
-    // Save submission
+    // Append to responses
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: 'Responses!A1',
       valueInputOption: 'USER_ENTERED',
       resource: {
-        values: [[name, phone, department, line, point, time, new Date().toISOString()]]
-      }
+        values: [[name, phone, department, line, point, time, new Date().toISOString()]],
+      },
     });
 
     // Increment usage
@@ -188,7 +178,7 @@ app.post('/submit', async (req, res) => {
       spreadsheetId: SHEET_ID,
       range: `Usage!C${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[usedInt + 1]] }
+      resource: { values: [[usedInt + 1]] },
     });
 
     const remaining = maxInt - usedInt - 1;
