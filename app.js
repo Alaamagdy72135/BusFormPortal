@@ -10,11 +10,12 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
+// === Environment Config ===
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 const SHEET_ID = process.env.SHEET_ID;
 
-// === Auth Middleware ===
+// === Basic Auth Middleware (for admin only) ===
 function protectAdmin(req, res, next) {
   const user = basicAuth(req);
   if (user && user.name === ADMIN_USER && user.pass === ADMIN_PASS) {
@@ -24,6 +25,7 @@ function protectAdmin(req, res, next) {
   return res.status(401).send('🔒 Unauthorized');
 }
 
+// Protect only admin.html and /api/*
 app.use('/admin.html', protectAdmin);
 app.use('/api', protectAdmin);
 
@@ -35,13 +37,12 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-
 async function getSheetsClient() {
   const client = await auth.getClient();
   return google.sheets({ version: 'v4', auth: client });
 }
 
-// === API: GET Usage ===
+// === GET Usage Data ===
 app.get('/api/usage', async (req, res) => {
   try {
     const sheets = await getSheetsClient();
@@ -66,7 +67,7 @@ app.get('/api/usage', async (req, res) => {
   }
 });
 
-// === API: Update Line Limit ===
+// === Update Max Limit per Line ===
 app.post('/api/update-limits', async (req, res) => {
   const { line, max } = req.body;
   try {
@@ -97,7 +98,7 @@ app.post('/api/update-limits', async (req, res) => {
   }
 });
 
-// === API: Reset Usage ===
+// === Reset Usage per Line ===
 app.post('/api/reset-usage', async (req, res) => {
   const { line } = req.body;
   try {
@@ -128,7 +129,7 @@ app.post('/api/reset-usage', async (req, res) => {
   }
 });
 
-// === API: Submit ===
+// === Handle Submissions ===
 app.post('/submit', async (req, res) => {
   const { name, phone, department, line, point, time } = req.body;
 
@@ -144,7 +145,7 @@ app.post('/submit', async (req, res) => {
   try {
     const sheets = await getSheetsClient();
 
-    // Fetch usage data
+    // Read usage
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: 'Usage!A2:C'
@@ -165,7 +166,7 @@ app.post('/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'لا توجد أماكن متبقية لهذا الخط.' });
     }
 
-    // Append to responses
+    // Append submission
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: 'Responses!A1',
