@@ -2,8 +2,8 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <title>لوحة التحكم - خطوط الموظفين</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>لوحة التحكم - خطوط السير</title>
     <link rel="icon" href="./logo.png" />
     <link
       rel="stylesheet"
@@ -15,122 +15,95 @@
     />
     <style>
       body {
-        background-color: #f5f5f5;
+        background-color: #f8f9fa;
         font-family: "Cairo", sans-serif;
       }
-      .admin-container {
+      .container {
         max-width: 900px;
-        margin: 40px auto;
-        background: #fff;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        margin-top: 50px;
       }
-      table input {
-        max-width: 100px;
+      .btn-group {
+        display: flex;
+        gap: 5px;
       }
     </style>
   </head>
+  <body>
+    <div class="container">
+      <h3 class="text-center mb-4">
+        <i class="fas fa-tools"></i> لوحة تحكم المشرف - خطوط السير
+      </h3>
 
-  <body onload="loadUsage()">
-    <div class="container admin-container">
-      <h4 class="text-center mb-4">
-        <i class="fas fa-tools"></i> لوحة تحكم خطوط الموظفين
-      </h4>
-
-      <div class="table-responsive">
-        <table class="table table-bordered align-middle text-center">
-          <thead class="table-light">
-            <tr>
-              <th>الخط</th>
-              <th>الحد الأقصى</th>
-              <th>المستخدم</th>
-              <th>المتبقي</th>
-              <th>إجراءات</th>
-            </tr>
-          </thead>
-          <tbody id="lineTableBody"></tbody>
-        </table>
-      </div>
+      <table class="table table-bordered text-center">
+        <thead class="table-light">
+          <tr>
+            <th>الخط</th>
+            <th>الحد الأقصى</th>
+            <th>تم الاستخدام</th>
+            <th>المتبقي</th>
+            <th>تحديث</th>
+            <th>إعادة تعيين</th>
+          </tr>
+        </thead>
+        <tbody id="usageTableBody">
+          <!-- rows will be filled dynamically -->
+        </tbody>
+      </table>
     </div>
 
     <script>
-      async function loadUsage() {
-        const res = await fetch("/api/usage", { credentials: "include" });
-        const usage = await res.json();
-        const body = document.getElementById("lineTableBody");
-        body.innerHTML = "";
+      async function fetchUsageData() {
+        try {
+          const res = await fetch("/api/usage");
+          const data = await res.json();
+          const tbody = document.getElementById("usageTableBody");
+          tbody.innerHTML = "";
 
-        Object.entries(usage).forEach(([line, info]) => {
-          const { max, used } = info;
-          const remaining = max - used;
+          for (const [line, info] of Object.entries(data)) {
+            const tr = document.createElement("tr");
 
-          body.innerHTML += `
-          <tr>
+            tr.innerHTML = `
             <td>${line}</td>
-            <td>
-              <input type="number" id="max-${line}" class="form-control text-center" value="${max}" />
-            </td>
-            <td>${used}</td>
-            <td class="${
-              remaining === 0 ? "text-danger" : ""
-            }">${remaining}</td>
-            <td>
-              <button class="btn btn-sm btn-primary" onclick="updateLimit('${line}')">
-                <i class="fas fa-save"></i> تحديث
-              </button>
-              <button class="btn btn-sm btn-danger ms-2" onclick="resetUsage('${line}')">
-                <i class="fas fa-undo"></i> إعادة تعيين
-              </button>
-            </td>
-          </tr>
-        `;
-        });
+            <td><input type="number" min="0" value="${
+              info.max
+            }" class="form-control" onchange="updateLimit('${line}', this.value)" /></td>
+            <td>${info.used}</td>
+            <td>${info.max - info.used}</td>
+            <td><button class="btn btn-primary btn-sm" onclick="updateLimit('${line}', this.parentElement.parentElement.querySelector('input').value)">
+              <i class="fas fa-save"></i> حفظ
+            </button></td>
+            <td><button class="btn btn-danger btn-sm" onclick="resetUsage('${line}')">
+              <i class="fas fa-rotate-left"></i> تصفير
+            </button></td>
+          `;
+
+            tbody.appendChild(tr);
+          }
+        } catch (err) {
+          console.error("فشل في تحميل البيانات:", err);
+        }
       }
 
-      async function updateLimit(line) {
-        const newMax = document.getElementById(`max-${line}`).value;
+      async function updateLimit(line, value) {
         await fetch("/api/update-limits", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ line, max: parseInt(newMax) }),
+          body: JSON.stringify({ line, max: parseInt(value) }),
         });
-        loadUsage();
+        fetchUsageData(); // Refresh after update
       }
 
       async function resetUsage(line) {
         await fetch("/api/reset-usage", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ line }),
         });
-        loadUsage();
+        fetchUsageData(); // Refresh after reset
       }
 
-      async function fetchUsageData() {
-        const res = await fetch("/api/usage");
-        const data = await res.json();
-        const tbody = document.getElementById("lineTableBody");
-        tbody.innerHTML = ""; // Clear old rows
-
-        for (const [line, info] of Object.entries(data)) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-        <td>${line}</td>
-        <td>${info.max}</td>
-        <td>${info.used}</td>
-        <td>${info.max - info.used}</td>
-      `;
-          tbody.appendChild(tr);
-        }
-      }
-
-      // Load once on page load
+      // Load on page and auto refresh every 10 seconds
       fetchUsageData();
-
-      // Refresh every 10 seconds
       setInterval(fetchUsageData, 10000);
     </script>
 
