@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const basicAuth = require('basic-auth');
 const { google } = require('googleapis');
@@ -8,154 +7,189 @@ const { google } = require('googleapis');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.static('public'));
 
-// Admin credentials
-const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASS || 'password';
+const ADMIN_USER = process.env.ADMIN_USER;
+const ADMIN_PASS = process.env.ADMIN_PASS;
 const SHEET_ID = process.env.SHEET_ID;
 
-const protectAdmin = (req, res, next) => {
+// === Auth Middleware ===
+function protectAdmin(req, res, next) {
   const user = basicAuth(req);
   if (user && user.name === ADMIN_USER && user.pass === ADMIN_PASS) {
     return next();
   }
   res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
   return res.status(401).send('🔒 Unauthorized');
-};
+}
 
 app.use('/admin.html', protectAdmin);
 app.use('/api', protectAdmin);
 
-// File paths
-const usagePath = path.join(__dirname, 'data', 'usage.json');
-const responsesPath = path.join(__dirname, 'data', 'responses.json');
-const credentialsPath = path.join(__dirname, 'config', 'credentials.json');
+// === Google Sheets Auth ===
+const auth = new google.auth.GoogleAuth({
+  keyFile: path.join(__dirname, 'config', 'credentials.json'),
+  scopes: ['https://www.googleapis.com/auth/spreadsheets']
+});
 
-// Read/Write JSON
-const readJSON = file => JSON.parse(fs.readFileSync(file, 'utf8'));
-const writeJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-
-// Append to Google Sheet
-async function appendToSheet(response) {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: credentialsPath,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets']
-  });
-
+async function getSheetsClient() {
   const client = await auth.getClient();
-  const sheets = google.sheets({ version: 'v4', auth: client });
-
-  const values = [[
-    response.name,
-    response.phone,
-    response.department,
-    response.line,
-    response.point,
-    response.time,
-    new Date().toISOString()
-  ]];
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range: 'Responses!A1',
-    valueInputOption: 'USER_ENTERED',
-    resource: { values }
-  });
+  return google.sheets({ version: 'v4', auth: client });
 }
 
-// ==================== API Routes ====================
-
-// GET usage
-app.get('/api/usage', (req, res) => {
+// === API: GET Usage ===
+app.get('/api/usage', async (req, res) => {
   try {
-    const usage = readJSON(usagePath);
+    const sheets = await getSheetsClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Usage!A2:C'
+    });
+
+    const rows = result.data.values || [];
+    const usage = {};
+    rows.forEach(([line, max, used]) => {
+      usage[line] = {
+        max: parseInt(max),
+        used: parseInt(used)
+      };
+    });
+
     res.json(usage);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to load usage' });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch usage data' });
   }
 });
 
-// POST update line limits
-app.post('/api/update-limits', (req, res) => {
+// === API: Update Line Limit ===
+app.post('/api/update-limits', async (req, res) => {
+  const { line, max } = req.body;
   try {
-    const { line, max } = req.body;
-    const usage = readJSON(usagePath);
-    if (usage[line]) {
-      usage[line].max = parseInt(max);
-      writeJSON(usagePath, usage);
-      return res.json({ success: true });
+    const sheets = await getSheetsClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Usage!A2:C'
+    });
+
+    const rows = result.data.values || [];
+    const rowIndex = rows.findIndex(r => r[0] === line);
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Line not found' });
     }
-    res.status(404).json({ error: 'Line not found' });
-  } catch {
-    res.status(500).json({ error: 'Failed to update limit' });
+
+    const rowNumber = rowIndex + 2;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Usage!B${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [[max]] }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update limits' });
   }
 });
 
-// POST reset line usage
-app.post('/api/reset-usage', (req, res) => {
+// === API: Reset Usage ===
+app.post('/api/reset-usage', async (req, res) => {
+  const { line } = req.body;
   try {
-    const { line } = req.body;
-    const usage = readJSON(usagePath);
-    if (usage[line]) {
-      usage[line].used = 0;
-      writeJSON(usagePath, usage);
-      return res.json({ success: true });
+    const sheets = await getSheetsClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Usage!A2:C'
+    });
+
+    const rows = result.data.values || [];
+    const rowIndex = rows.findIndex(r => r[0] === line);
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Line not found' });
     }
-    res.status(404).json({ error: 'Line not found' });
-  } catch {
+
+    const rowNumber = rowIndex + 2;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Usage!C${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [[0]] }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: 'Failed to reset usage' });
   }
 });
 
-// POST form submission
+// === API: Submit ===
 app.post('/submit', async (req, res) => {
+  const { name, phone, department, line, point, time } = req.body;
+
+  if (!name || !phone || !department || !line || !point || !time) {
+    return res.status(400).json({ success: false, message: 'جميع الحقول مطلوبة' });
+  }
+
+  const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
+  if (!phoneRegex.test(phone)) {
+    return res.status(400).json({ success: false, message: 'رقم الهاتف غير صالح. تأكد من إدخاله بشكل صحيح.' });
+  }
+
   try {
-    const { name, phone, department, line, point, time } = req.body;
-    if (!name || !phone || !department || !line || !point || !time) {
-      return res.status(400).json({ success: false, message: 'جميع الحقول مطلوبة' });
-    }
+    const sheets = await getSheetsClient();
 
-    // Validate Egyptian phone number
-    const phoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ success: false, message: 'رقم الهاتف غير صالح. تأكد من إدخاله بشكل صحيح.' });
-    }
+    // Fetch usage data
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Usage!A2:C'
+    });
 
-    const usage = readJSON(usagePath);
-    if (!usage[line]) {
+    const rows = result.data.values || [];
+    const rowIndex = rows.findIndex(r => r[0] === line);
+
+    if (rowIndex === -1) {
       return res.status(400).json({ success: false, message: 'خط غير معروف' });
     }
 
-    if (usage[line].used >= usage[line].max) {
-      return res.status(400).json({ success: false, message: 'عذراً، لا توجد أماكن متبقية لهذا الخط.' });
+    const [_, max, used] = rows[rowIndex];
+    const maxInt = parseInt(max);
+    const usedInt = parseInt(used);
+
+    if (usedInt >= maxInt) {
+      return res.status(400).json({ success: false, message: 'لا توجد أماكن متبقية لهذا الخط.' });
     }
 
-    // Save to JSON
-    const responses = readJSON(responsesPath);
-    const response = { name, phone, department, line, point, time, timestamp: new Date().toISOString() };
-    responses.push(response);
-    writeJSON(responsesPath, responses);
+    // Append to responses
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: 'Responses!A1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[name, phone, department, line, point, time, new Date().toISOString()]]
+      }
+    });
 
-    // Save to Google Sheet
-    await appendToSheet(response);
+    // Increment usage
+    const rowNumber = rowIndex + 2;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Usage!C${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [[usedInt + 1]] }
+    });
 
-    // Update usage
-    usage[line].used += 1;
-    writeJSON(usagePath, usage);
-
-    const remaining = usage[line].max - usage[line].used;
+    const remaining = maxInt - usedInt - 1;
     res.json({ success: true, message: `تم الإرسال بنجاح. متبقي ${remaining} أماكن لهذا الخط.` });
-
   } catch (err) {
     console.error('❌ Submission error:', err);
     res.status(500).json({ success: false, message: 'حدث خطأ أثناء الإرسال. حاول مرة أخرى.' });
   }
 });
 
-// Start server
+// === Start Server ===
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
