@@ -8,26 +8,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(express.static('public'));
 
-// === Environment Config ===
+// === Environment Variables ===
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 const SHEET_ID = process.env.SHEET_ID;
 
-// === Basic Auth Middleware (for admin only) ===
-function protectAdmin(req, res, next) {
-  const user = basicAuth(req);
-  if (user && user.name === ADMIN_USER && user.pass === ADMIN_PASS) {
-    return next();
-  }
-  res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
-  return res.status(401).send('🔒 Unauthorized');
-}
-
-// Protect only admin.html and /api/*
-app.use('/admin.html', protectAdmin);
-app.use('/api', protectAdmin);
+// === Serve public files (form, assets) ===
+app.use(express.static('public'));
 
 // === Google Sheets Auth ===
 const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -41,6 +29,24 @@ async function getSheetsClient() {
   const client = await auth.getClient();
   return google.sheets({ version: 'v4', auth: client });
 }
+
+// === Basic Auth Middleware ===
+function protectAdmin(req, res, next) {
+  const user = basicAuth(req);
+  if (user && user.name === ADMIN_USER && user.pass === ADMIN_PASS) {
+    return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+  return res.status(401).send('🔒 Unauthorized');
+}
+
+// === Serve protected admin.html manually ===
+app.get('/admin.html', protectAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'admin.html'));
+});
+
+// === Protect API routes ===
+app.use('/api', protectAdmin);
 
 // === GET Usage Data ===
 app.get('/api/usage', async (req, res) => {
@@ -129,7 +135,7 @@ app.post('/api/reset-usage', async (req, res) => {
   }
 });
 
-// === Handle Submissions ===
+// === Handle Form Submission ===
 app.post('/submit', async (req, res) => {
   const { name, phone, department, line, point, time } = req.body;
 
@@ -145,7 +151,7 @@ app.post('/submit', async (req, res) => {
   try {
     const sheets = await getSheetsClient();
 
-    // Read usage
+    // Get usage row
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: 'Usage!A2:C'
@@ -166,7 +172,7 @@ app.post('/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'لا توجد أماكن متبقية لهذا الخط.' });
     }
 
-    // Append submission
+    // Save submission
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: 'Responses!A1',
