@@ -62,6 +62,8 @@ app.post('/login', (req, res) => {
 
 // === Protect admin.html and /api routes only ===
 app.use('/admin.html', protectAdmin);
+app.use('/api/update-limits', protectAdmin);
+app.use('/api/reset-usage', protectAdmin);
 
 // === API: GET Usage ===
 app.get('/api/usage', async (req, res) => {
