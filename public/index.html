@@ -1,192 +1,409 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>خطوط سير الموظفين - مؤسسة صناع الحياة</title>
-  <link rel="icon" href="./logo.png" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <style>
-    body {
-      background: #f7f7f7;
-      font-family: "Cairo", sans-serif;
-    }
-    .form-container {
-      max-width: 600px;
-      margin: 50px auto;
-      padding: 30px;
-      background: #ffffff;
-      border-radius: 15px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-    }
-    label {
-      margin-top: 10px;
-    }
-    .form-control,
-    .form-select {
-      border-radius: 8px;
-    }
-    .submit-btn {
-      width: 100%;
-      margin-top: 20px;
-    }
-  </style>
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>خطوط السير التجريبية للموظفين</title>
+    <link rel="icon" href="./logo_white.png" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <style>
+      body {
+        background: #f7f7f7;
+        font-family: "Cairo", sans-serif;
+      }
+      .form-container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 30px;
+        background: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      }
+      label {
+        margin-top: 10px;
+      }
+      .form-control,
+      .form-select {
+        border-radius: 8px;
+      }
+      .submit-btn {
+        width: 100%;
+        margin-top: 20px;
+      }
+      #codeError {
+        display: none;
+      }
+    </style>
+  </head>
 
-<body onload="loadData()">
-  <div class="container">
-    <div class="form-container">
-      <h4 class="text-center mb-4">
-        <i class="fas fa-bus"></i> خطوط سير الموظفين - مؤسسة صناع الحياة
-      </h4>
+  <body onload="loadData()">
+    <div class="container">
+      <div class="form-container">
+        <h4
+          class="text-center mb-4 d-flex align-items-center justify-content-center gap-2 flex-column"
+        >
+          <div><i class="fas fa-bus"></i> خطوط السير التجريبية للموظفين</div>
+          <div class="mb-0">
+            <img class="w-50 mt-2 mb-0" src="./logo.png" alt="logo" />
+          </div>
+        </h4>
 
-      <form id="form" onsubmit="event.preventDefault(); submitForm();">
-        <div class="mb-3">
-          <label for="name" class="form-label">الاسم</label>
-          <input type="text" id="name" class="form-control" required />
-        </div>
+        <form id="form" onsubmit="event.preventDefault(); submitForm();">
+          <div class="mb-3">
+            <label for="jobCode" class="form-label">الكود الوظيفي</label>
+            <input
+              type="text"
+              id="jobCode"
+              class="form-control"
+              required
+              onblur="validateJobCode()"
+            />
+            <div id="codeError" class="text-danger small mt-1">
+              الكود غير صحيح أو غير موجود
+            </div>
+          </div>
 
-        <div class="mb-3">
-          <label for="phone" class="form-label">رقم الهاتف</label>
-          <input type="text" id="phone" class="form-control" required pattern="^01[0-2,5]{1}[0-9]{8}$" />
-        </div>
+          <div class="mb-3">
+            <label for="name" class="form-label">الاسم</label>
+            <input
+              type="text"
+              id="name"
+              class="form-control"
+              required
+              disabled
+            />
+          </div>
 
-        <div class="mb-3">
-          <label for="department" class="form-label">الإدارة</label>
-          <select id="department" class="form-select" required>
-            <option disabled selected>اختر الإدارة</option>
-            <option>الأمن والسلامة وشئون المقر</option>
-            <option>تكنولوجيا المعلومات</option>
-            <option>العمليات</option>
-            <option>تطوير الاعمال</option>
-            <option>الشئون الادارية والقانونية</option>
-            <option>ادارة الحالة والتقييم والمتابعة</option>
-            <option>الموارد البشرية</option>
-            <option>الاتصالات والشراكات</option>
-            <option>سلاسل الامداد</option>
-            <option>الإدارة المالية</option>
-            <option>التمويل المباشر</option>
-            <option>المكاتب والشركاء</option>
-            <option>الادارة التنفيذية</option>
-            <option>الفعاليات</option>
-          </select>
-        </div>
+          <div class="mb-3">
+            <label for="phone" class="form-label">رقم الهاتف</label>
+            <input
+              type="text"
+              id="phone"
+              class="form-control"
+              required
+              pattern="^01[0-2,5]{1}[0-9]{8}$"
+            />
+          </div>
 
-        <div class="mb-3">
-          <label for="line" class="form-label">الخط</label>
-          <select id="line" class="form-select" onchange="updatePoints()" required></select>
-        </div>
+          <div class="mb-3">
+            <label for="department" class="form-label">الإدارة</label>
+            <select id="department" class="form-select" required>
+              <option disabled selected>اختر الإدارة</option>
+              <option>الأمن والسلامة وشئون المقر</option>
+              <option>تكنولوجيا المعلومات</option>
+              <option>العمليات</option>
+              <option>تطوير الاعمال</option>
+              <option>الشئون الادارية والقانونية</option>
+              <option>ادارة الحالة والتقييم والمتابعة</option>
+              <option>الموارد البشرية</option>
+              <option>الاتصالات والشراكات</option>
+              <option>سلاسل الامداد</option>
+              <option>الإدارة المالية</option>
+              <option>التمويل المباشر</option>
+              <option>المكاتب والشركاء</option>
+              <option>الادارة التنفيذية</option>
+              <option>الفعاليات</option>
+            </select>
+          </div>
 
-        <div class="mb-3">
-          <label for="point" class="form-label">نقطة التحرك</label>
-          <select id="point" class="form-select" onchange="updateTimes()" required></select>
-        </div>
+          <div class="mb-3">
+            <label for="line" class="form-label">الخط</label>
+            <select
+              id="line"
+              class="form-select"
+              onchange="updatePoints()"
+              required
+            ></select>
+          </div>
 
-        <div class="mb-3">
-          <label for="time" class="form-label">معاد التحرك</label>
-          <input type="text" id="time" class="form-control" readonly />
-        </div>
+          <div class="mb-3">
+            <label for="point" class="form-label">نقطة التحرك</label>
+            <select
+              id="point"
+              class="form-select"
+              onchange="updateTimes()"
+              required
+            ></select>
+          </div>
 
-        <button type="submit" class="btn btn-success submit-btn">
-          <i class="fas fa-paper-plane"></i> إرسال
-        </button>
-      </form>
+          <div class="mb-3">
+            <label for="time" class="form-label">معاد التحرك</label>
+            <input type="text" id="time" class="form-control" readonly />
+          </div>
+
+          <div class="form-check mb-3">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="policyCheck"
+              required
+            />
+            <label class="form-check-label" for="policyCheck">
+              أوافق على
+              <a href="#" onclick="showPolicyModal()">سياسة الاستخدام</a>
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-success submit-btn">
+            <i class="fas fa-paper-plane"></i> إرسال
+          </button>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <!-- Modals -->
-  <div class="modal fade" id="feedbackModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalTitle"></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body" id="modalMessage"></div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+    <!-- Feedback Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTitle"></h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body" id="modalMessage"></div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إغلاق
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script>
-    let data = {};
-    let usage = {};
+    <!-- Policy Modal -->
+    <div class="modal fade" id="policyModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">سياسة الاستخدام</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="إغلاق"
+            ></button>
+          </div>
+          <div class="modal-body text-start" id="policyBody">
+            <h5 class="text-center fw-bold mb-3">
+              الشروط والأحكام الخاصة بالاشتراك في خطوط السير (التجريبية)
+            </h5>
+            <p>
+              حرصًا من المؤسسة على راحة العاملين وتسهيل وسائل الوصول إلى المقر
+              الجديد، نرجو من السادة الزملاء الراغبين في التسجيل الاطلاع على
+              الشروط التالية قبل إتمام عملية التسجيل:
+            </p>
 
-    async function loadData() {
-      const [linesRes, usageRes] = await Promise.all([
-        fetch("/lines.json"),
-        fetch("/api/usage", { credentials: "include" })
-      ]);
-      data = await linesRes.json();
-      usage = await usageRes.json();
-      populateLines();
-    }
+            <h6 class="fw-bold mt-4">💳 قيمة الاشتراك الشهري:</h6>
+            <ul class="list-unstyled">
+              <li>
+                <strong>خط 1</strong> (أكتوبر - حدائق أكتوبر - حدائق الأهرام -
+                الهرم - المعراج)<br />🕖 من 7:00 ص إلى 9:00 ص – 💰
+                <strong>1,200 جم شهريًا</strong>
+              </li>
+              <li class="mt-2">
+                <strong>خط 2</strong> (السلام - قليوب - الدائري - المعراج)<br />🕖
+                من 7:00 ص إلى 9:00 ص – 💰 <strong>1,000 جم شهريًا</strong>
+              </li>
+              <li class="mt-2">
+                <strong>خط 3</strong> (المنيب - المعراج)<br />🕣 من 8:30 ص إلى
+                9:00 ص – 💰 <strong>350 جم شهريًا</strong>
+              </li>
+              <li class="mt-2">
+                <strong>خط 4</strong> (مقر المشتل - مترو الزهراء - المعراج)<br />🕤
+                من 9:30 ص إلى 10:00 ص – 💰 <strong>350 جم شهريًا</strong>
+              </li>
+              <li class="mt-2">
+                <strong>خط 5</strong> (مترو الزهراء - المعراج)<br />🕣 من 8:30 ص
+                إلى 9:00 ص – 💰 <strong>350 جم شهريًا</strong>
+              </li>
+              <li class="mt-2">
+                <strong>خط 6</strong> (مترو الزهراء - المعراج)<br />🕤 من 9:30 ص
+                إلى 10:00 ص – 💰 <strong>350 جم شهريًا</strong>
+              </li>
+            </ul>
 
-    function populateLines() {
-      const ddLine = document.getElementById("line");
-      ddLine.innerHTML = "<option disabled selected>اختر الخط</option>";
-      Object.keys(data).forEach((line) => {
-        const remaining = usage[line]?.max - usage[line]?.used;
-        if (remaining > 0) {
-          ddLine.innerHTML += `<option value="${line}">${line}</option>`;
-        }
-      });
-    }
+            <h6 class="fw-bold mt-4">📝 آلية الاشتراك:</h6>
+            <ul>
+              <li>
+                قيمة الاشتراك تُحتسب كاملة عن الشهر، بغض النظر عن عدد أيام
+                الحضور الفعلية.
+              </li>
+              <li>يتم خصم الاشتراك شهريًا من قبل إدارة الموارد البشرية.</li>
+              <li>يُمنع تغيير النقطة أو الخط بعد التسجيل.</li>
+              <li>البيانات الخاطئة قد تؤدي إلى إلغاء الحجز تلقائيًا.</li>
+              <li>
+                في حالة عدم اكتمال عدد 10 أفراد على الأقل في الخط، يتم إعادة
+                تعيين الخط بمعرفة قسم الحركة.
+              </li>
+            </ul>
 
-    function updatePoints() {
-      const line = document.getElementById("line").value;
-      const ddPoint = document.getElementById("point");
-      ddPoint.innerHTML = "<option disabled selected>اختر النقطة</option>";
-      Object.keys(data[line]).forEach((point) => {
-        ddPoint.innerHTML += `<option value="${point}">${point}</option>`;
-      });
-      document.getElementById("time").value = "";
-    }
+            <h6 class="fw-bold mt-4">⏰ الالتزام بالمواعيد:</h6>
+            <ul>
+              <li>
+                يُرجى التواجد في نقطة التجمع المحددة قبل موعد التحرك بخمس دقائق
+                على الأقل.
+              </li>
+              <li>
+                الحد الأقصى للانتظار هو 5 دقائق فقط من الموعد المحدد، على أن
+                يتحرك السائق فورًا بعدها دون انتظار إضافي، حرصًا على التزام باقي
+                الزملاء بمواعيد العمل.
+              </li>
+            </ul>
 
-    function updateTimes() {
-      const line = document.getElementById("line").value;
-      const point = document.getElementById("point").value;
-      document.getElementById("time").value = data[line][point][0];
-    }
+            <h6 class="fw-bold mt-4">📌 عام:</h6>
+            <ul>
+              <li>
+                هذه المبادرة تأتي في إطار حرص المؤسسة على راحة الزملاء، وهي
+                تجربة مبدئية قابلة للتطوير والتعديل وفقًا للتقييمات والملاحظات
+                الواردة.
+              </li>
+              <li>
+                لا تُعد هذه الخدمة التزامًا دائمًا على المؤسسة، لكنها خطوة أولى
+                نسعى من خلالها إلى تحسين بيئة العمل وتوفير وسائل انتقال مريحة
+                للجميع تدريجيًا.
+              </li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button
+              class="btn btn-success"
+              data-bs-dismiss="modal"
+              onclick="document.getElementById('policyCheck').checked = true;"
+            >
+              أوافق
+            </button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    async function submitForm() {
-      const form = {
-        name: document.getElementById("name").value,
-        phone: document.getElementById("phone").value,
-        department: document.getElementById("department").value,
-        line: document.getElementById("line").value,
-        point: document.getElementById("point").value,
-        time: document.getElementById("time").value,
-      };
+    <!-- JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let data = {};
+      let usage = {};
+      let jobCodes = {};
 
-      const res = await fetch("/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      async function loadData() {
+        const [linesRes, usageRes, codesRes] = await Promise.all([
+          fetch("/lines.json"),
+          fetch("/api/usage"),
+          fetch("/api/jobcodes"),
+        ]);
 
-      const result = await res.json();
-      showModal(result.success ? "نجاح" : "خطأ", result.message);
-
-      if (result.success) {
-        document.getElementById("form").reset();
-        document.getElementById("point").innerHTML = "";
-        document.getElementById("time").value = "";
-        await loadData(); // Refresh availability
+        data = await linesRes.json();
+        usage = await usageRes.json();
+        jobCodes = await codesRes.json();
+        populateLines();
       }
-    }
 
-    function showModal(title, message) {
-      document.getElementById("modalTitle").innerText = title;
-      document.getElementById("modalMessage").innerText = message;
-      const modal = new bootstrap.Modal(document.getElementById("feedbackModal"));
-      modal.show();
-    }
-  </script>
+      function populateLines() {
+        const ddLine = document.getElementById("line");
+        ddLine.innerHTML = "<option disabled selected>اختر الخط</option>";
+        Object.keys(data).forEach((line) => {
+          const remaining = usage[line]?.max - usage[line]?.used;
+          if (remaining > 0) {
+            ddLine.innerHTML += `<option value="${line}">${line}</option>`;
+          }
+        });
+      }
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+      function updatePoints() {
+        const line = document.getElementById("line").value;
+        const ddPoint = document.getElementById("point");
+        ddPoint.innerHTML = "<option disabled selected>اختر النقطة</option>";
+        Object.keys(data[line]).forEach((point) => {
+          ddPoint.innerHTML += `<option value="${point}">${point}</option>`;
+        });
+        document.getElementById("time").value = "";
+      }
+
+      function updateTimes() {
+        const line = document.getElementById("line").value;
+        const point = document.getElementById("point").value;
+        document.getElementById("time").value = data[line][point][0];
+      }
+
+      function showPolicyModal() {
+        const modal = new bootstrap.Modal(
+          document.getElementById("policyModal")
+        );
+        modal.show();
+      }
+
+      function validateJobCode() {
+        const code = document.getElementById("jobCode").value.trim();
+        const name = jobCodes[code];
+        const nameField = document.getElementById("name");
+        const error = document.getElementById("codeError");
+
+        if (name) {
+          nameField.value = name;
+          error.style.display = "none";
+        } else {
+          nameField.value = "";
+          error.style.display = "block";
+        }
+      }
+
+      async function submitForm() {
+        const jobCode = document.getElementById("jobCode").value.trim();
+        const name = document.getElementById("name").value.trim();
+        if (!jobCodes[jobCode] || jobCodes[jobCode] !== name) {
+          showModal("خطأ", "يرجى إدخال كود وظيفي صحيح");
+          return;
+        }
+
+        const form = {
+          jobCode,
+          name,
+          phone: document.getElementById("phone").value,
+          department: document.getElementById("department").value,
+          line: document.getElementById("line").value,
+          point: document.getElementById("point").value,
+          time: document.getElementById("time").value,
+        };
+
+        const res = await fetch("/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+
+        const result = await res.json();
+        showModal(result.success ? "نجاح" : "خطأ", result.message);
+
+        if (result.success) {
+          document.getElementById("form").reset();
+          document.getElementById("point").innerHTML = "";
+          document.getElementById("time").value = "";
+          await loadData();
+        }
+      }
+
+      function showModal(title, message) {
+        document.getElementById("modalTitle").innerText = title;
+        document.getElementById("modalMessage").innerText = message;
+        new bootstrap.Modal(document.getElementById("feedbackModal")).show();
+      }
+    </script>
+  </body>
 </html>
