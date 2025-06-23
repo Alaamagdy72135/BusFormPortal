@@ -183,13 +183,13 @@ app.post('/submit', async (req, res) => {
   try {
     const sheets = await getSheetsClient();
 
-    // Validate Job Code
-    const codeResult = await sheets.spreadsheets.values.get({
+    // === 1. Validate Job Code ===
+    const jobCodeResult = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: 'JobCodes!A2:B'
     });
 
-    const jobCodeRows = codeResult.data.values || [];
+    const jobCodeRows = jobCodeResult.data.values || [];
     const matched = jobCodeRows.find(([code, userName]) =>
       code.trim() === jobCode.trim() && userName.trim() === name.trim()
     );
@@ -198,19 +198,30 @@ app.post('/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'الكود الوظيفي غير صحيح أو لا يطابق الاسم.' });
     }
 
-    // Check usage
+    // === 2. Prevent Duplicate Submissions by Job Code ===
+    const responsesResult = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Responses!A2:A'
+    });
+
+    const submittedCodes = (responsesResult.data.values || []).map(row => row[0]);
+    if (submittedCodes.includes(jobCode.trim())) {
+      return res.status(400).json({ success: false, message: 'لقد قمت بالتسجيل بالفعل. لا يمكن التسجيل مرتين.' });
+    }
+
+    // === 3. Check Usage Capacity ===
     const usageResult = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: 'Usage!A2:C'
     });
 
-    const rows = usageResult.data.values || [];
-    const rowIndex = rows.findIndex(r => r[0] === line);
+    const usageRows = usageResult.data.values || [];
+    const rowIndex = usageRows.findIndex(r => r[0] === line);
     if (rowIndex === -1) {
       return res.status(400).json({ success: false, message: 'خط غير معروف' });
     }
 
-    const [_, max, used] = rows[rowIndex];
+    const [_, max, used] = usageRows[rowIndex];
     const maxInt = parseInt(max);
     const usedInt = parseInt(used);
 
@@ -218,7 +229,7 @@ app.post('/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'لا توجد أماكن متبقية لهذا الخط.' });
     }
 
-    // Append to Responses
+    // === 4. Append to Responses ===
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: 'Responses!A1',
@@ -228,7 +239,7 @@ app.post('/submit', async (req, res) => {
       }
     });
 
-    // Increment usage
+    // === 5. Update Usage Count ===
     const rowNumber = rowIndex + 2;
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
@@ -239,6 +250,7 @@ app.post('/submit', async (req, res) => {
 
     const remaining = maxInt - usedInt - 1;
     res.json({ success: true, message: `تم الإرسال بنجاح. متبقي ${remaining} أماكن لهذا الخط.` });
+
   } catch (err) {
     console.error('❌ Submission error:', err);
     res.status(500).json({ success: false, message: 'حدث خطأ أثناء الإرسال. حاول مرة أخرى.' });

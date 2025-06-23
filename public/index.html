@@ -367,10 +367,15 @@
       async function submitForm() {
         const jobCode = document.getElementById("jobCode").value.trim();
         const name = document.getElementById("name").value.trim();
+        const submitBtn = document.querySelector(".submit-btn");
+
         if (!jobCodes[jobCode] || jobCodes[jobCode] !== name) {
           showModal("خطأ", "يرجى إدخال كود وظيفي صحيح");
           return;
         }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...`;
 
         const form = {
           jobCode,
@@ -382,21 +387,28 @@
           time: document.getElementById("time").value,
         };
 
-        const res = await fetch("/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
+        try {
+          const res = await fetch("/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(form),
+          });
 
-        const result = await res.json();
-        showModal(result.success ? "نجاح" : "خطأ", result.message);
+          const result = await res.json();
+          showModal(result.success ? "نجاح" : "خطأ", result.message);
 
-        if (result.success) {
-          document.getElementById("form").reset();
-          document.getElementById("point").innerHTML = "";
-          document.getElementById("time").value = "";
-          await loadData();
+          if (result.success) {
+            document.getElementById("form").reset();
+            document.getElementById("point").innerHTML = "";
+            document.getElementById("time").value = "";
+            await loadData();
+          }
+        } catch (error) {
+          showModal("خطأ", "حدث خطأ أثناء الإرسال. حاول مرة أخرى.");
         }
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> إرسال`;
       }
 
       function showModal(title, message) {
